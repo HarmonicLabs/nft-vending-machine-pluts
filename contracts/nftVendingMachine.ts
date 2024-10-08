@@ -37,7 +37,7 @@ const contract = pfn([
 ], unit)
 ((mustSpendInitUtxo, { redeemer, tx, purpose }) => {
 
-  const action = plet(punsafeConvertType(redeemer, MintAction.type));
+  const action = plet(redeemer.as(MintAction.type));
 
   return pmatch(purpose)
     .onMinting(({ currencySym }) =>
