@@ -18,6 +18,8 @@ import {
   pisEmpty,
   punBData,
   pBool,
+  PTxOut,
+  PTxOutRef,
 } from "@harmoniclabs/plu-ts";
 
 const ASSET_NAME = "Test Token";
@@ -25,23 +27,53 @@ const MAX_SUPPLY = 10;
 
 export const MintAction = pstruct({
   Mint: {},
-  Burn: {}
+  Burn: {},
+  Init: {}
 })
 
 const contract = pfn([
-  bs,
+  PTxOutRef.type,
   PScriptContext.type,
 ], unit)
-((threadTokenPolicy, { redeemer, tx, purpose }) => {
+((mustSpendInitUtxo, { redeemer, tx, purpose }) => {
 
   const action = plet(punsafeConvertType(redeemer, MintAction.type));
 
   return pmatch(purpose)
     .onMinting(({ currencySym }) =>
       pmatch(action)
+        .onInit(() => 
+        
+          passert.$(
+            pisEmpty.$(tx.inputs.tail) // only one input
+            .and(tx.inputs.head.utxoRef.eq(mustSpendInitUtxo)) // make sure we only call init once
+            .and(
+              // we mint a single nft
+              tx.mint.head.fst.eq(currencySym)
+              .and(tx.mint.head.snd.length.eq(1))
+              .and(tx.mint.head.snd.head.fst.eq(ASSET_NAME))
+              .and(tx.mint.head.snd.head.snd.eq(1))
+            )
+            .and(
+              plet( tx.outputs.head ).in( out =>
+                // make sure the nft is sent to the contract
+                out.address.credential.hash.eq( currencySym )
+                .and( out.value.amountOf( currencySym, ASSET_NAME ).eq( 1 ))
+                // the initial datum is 0
+
+                .and(
+                  pmatch( out.datum )
+                  .onInlineDatum( ({ datum }) => punIData.$(datum).eq(0) )
+                  ._(_ => pBool(false))
+                )
+              )
+            )
+          )
+        )
         .onMint(() =>
           passert.$(
-            tx.inputs.some(i => i.resolved.address.credential.hash.eq(currencySym)))
+            tx.inputs.some(i => i.resolved.address.credential.hash.eq(currencySym))
+          )
         )
         .onBurn(() => 
           passert.$(
@@ -49,20 +81,18 @@ const contract = pfn([
         )
     )
     .onSpending(({ utxoRef, datum }) => {
-      const maybeInput = tx.inputs.find(i =>
-        i.utxoRef.eq(utxoRef).and(
-        i.resolved.value.amountOf(threadTokenPolicy, ASSET_NAME).gtEq(1)));
+
+      const maybeInput = tx.inputs.find(i => i.utxoRef.eq(utxoRef) );
 
       const input = plet(maybeInput).unwrap;
 
       const ownHash = punBData.$(input.resolved.address.credential.raw.fields.head);
 
-      const hasOwnershipToken = tx.inputs.some(i =>
-        i.resolved.value.amountOf(threadTokenPolicy, ASSET_NAME).gtEq(1));
+      const hasOwnershipToken = plet( input.resolved.value.amountOf(ownHash, ASSET_NAME).gtEq(1) );
 
       const paymentCredential = input.resolved.address.credential;
 
-      const id = punIData.$(datum.unwrap);
+      const id = plet(punIData.$(datum.unwrap));
 
       const hasOwnHashAsFirst = pisEmpty.$(tx.mint.tail).and(tx.mint.head.fst.eq(ownHash));
 
@@ -72,7 +102,7 @@ const contract = pfn([
 
       const userQuantity = ownMintedAssets.head.snd;
 
-      const assetNameWithId = `${ASSET_NAME}${id}`;
+      const assetNameWithId = `${ASSET_NAME}#${id}`;
 
       const hasCorrectName = userName.eq(assetNameWithId);
 
