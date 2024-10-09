@@ -29,30 +29,13 @@ export async function mintNft(wallet: BrowserWallet, projectId: string): Promise
 
   const tokenName = fromAscii('Test Token');
   const contractHash = scriptTestnetAddr.paymentCreds.hash;
-  const contractUTxOs = await Blockfrost.addressesUtxos(scriptTestnetAddr);
-  const contractInput = contractUTxOs.find(utxo => utxo.resolved.value.get(contractHash, tokenName) === BigInt(1));
-
-  if (contractInput === undefined) {
-    throw new Error("contract not found");
-  }
-
-  const currId = getNftCount( contractInput );
 
   const unsignedTx = txBuilder.buildSync({
-    inputs: [
-      { utxo },
-      {
-        utxo: contractInput,
-        inputScript: {
-          script: script,
-          redeemer: new DataConstr(0, [])
-        }
-      }
-    ],
+    inputs: [{ utxo }],
     outputs: [{
       address: scriptTestnetAddr,
       value: Value.lovelaces(10_000_000),
-      datum: new DataI( currId + BigInt( 1 ) ), // keep track of token, increment counter
+      datum: new DataI(0),
     }],
     changeAddress: recipient,
     collaterals: [utxo],
@@ -63,13 +46,13 @@ export async function mintNft(wallet: BrowserWallet, projectId: string): Promise
     mints: [{
       value: Value.singleAsset(
         contractHash,
-        fromAscii(`${tokenName}#${currId.toString()}`), // depends on the datum
+        tokenName,
         1
       ),
       script: {
         inline: script,
         policyId: contractHash,
-        redeemer: new DataConstr(0, []) // mint action
+        redeemer: new DataConstr(2, [])
       }
     }],
   });
@@ -82,13 +65,4 @@ export async function mintNft(wallet: BrowserWallet, projectId: string): Promise
   }
 
   return await Blockfrost.submitTx(unsignedTx);
-}
-
-function getNftCount( contractInput: UTxO ): bigint
-{
-  const datum = contractInput.resolved.datum;
-
-  if(!(datum instanceof DataI)) throw new Error("invalid datum for nft vending machine");
-
-  return datum.int;
 }
