@@ -20,6 +20,13 @@ import {
   pBool,
   PTxOut,
   PTxOutRef,
+  parseUPLC,
+  UPLCProgram,
+  Application,
+  TxOutRef,
+  UPLCConst,
+  compileUPLC,
+  CredentialType,
 } from "@harmoniclabs/plu-ts";
 
 const ASSET_NAME = "Test Token";
@@ -31,7 +38,7 @@ export const MintAction = pstruct({
   Init: {}
 })
 
-const contract = pfn([
+export const contract = pfn([
   PTxOutRef.type,
   PScriptContext.type,
 ], unit)
@@ -134,12 +141,39 @@ const contract = pfn([
 
 export const compiledContract = compile(contract);
 
-export const script = new Script(
-  ScriptType.PlutusV3,
-  compiledContract
-);
+export function getFinalContract( utxoRef: TxOutRef ): {
+  script: Script,
+  credential: Credential,
+  address: Address,
+  testnetAddress: Address
+}
+{
+  const program = parseUPLC( compiledContract );
 
-export const scriptTestnetAddr = new Address(
-  "testnet",
-  Credential.script(script.hash)
-);
+  const applyiedProgram = new UPLCProgram(
+    program.version,
+    new Application(
+      program.body,
+      UPLCConst.data( utxoRef.toData("v3") )
+    )
+  );
+
+  const finalCompiled = compileUPLC( applyiedProgram ).toBuffer().buffer;
+
+  const script = new Script(
+    ScriptType.PlutusV3,
+    finalCompiled
+  );
+
+  const credential = Credential.script( script.hash );
+
+  const address = Address.mainnet( credential );
+  const testnetAddress = Address.testnet( credential );
+
+  return {
+    script,
+    credential,
+    address,
+    testnetAddress
+  };
+}
