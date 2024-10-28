@@ -2,9 +2,9 @@
   "name": "nft-vending-machine-pluts",
   "version": "0.1.0",
   "private": true,
-  "engines" : { 
-    "node" : ">=20",
-    "npm" : ">=10"
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
   },
   "scripts": {
     "dev": "next dev",
@@ -17,7 +17,7 @@
     "@emotion/react": "^11.10.6",
     "@emotion/styled": "^11.10.6",
     "@harmoniclabs/blockfrost-pluts": "^0.1.14",
-    "@harmoniclabs/plu-ts": "^0.8.1-dev",
+    "@harmoniclabs/plu-ts": "^0.8.2-dev2",
     "@harmoniclabs/uint8array-utils": "^1.0.0",
     "@meshsdk/core": "^1.6.2",
     "@meshsdk/react": "^1.6.2",

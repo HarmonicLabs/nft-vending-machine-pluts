@@ -1,19 +1,27 @@
 import { useState, useEffect, ChangeEvent } from "react";
 import { Container, Box, Text, Button, Input, useToast } from "@chakra-ui/react";
 import { useNetwork, useWallet } from "@meshsdk/react";
+import { TxOutRef } from "@harmoniclabs/plu-ts";
 
 import style from "@/styles/Home.module.css";
 import ConnectionHandler from "@/components/ConnectionHandler";
+import { init } from "@/offchain/init";;
 import { mintNft } from "@/offchain/mintNft";;
 
 export default function Home() {
   const [blockfrostApiKey, setBlockfrostApiKey] = useState<string>('');
+  const [utxoRef, setUtxoRef] = useState<TxOutRef|null>(null);
   const {wallet, connected} = useWallet();
   const network = useNetwork();
   const toast = useToast();
 
   useEffect(() => {
     setBlockfrostApiKey(window.localStorage.getItem('BLOCKFROST_API_KEY') || '');
+    
+    const utxoRefJson = window.localStorage.getItem('UTXOREF');
+    if (utxoRefJson !== null) {
+      setUtxoRef(new TxOutRef(JSON.parse(utxoRefJson)));
+    }
   }, []);
 
   if (typeof network === "number" && network !== 0) {
@@ -34,14 +42,31 @@ export default function Home() {
     window.localStorage.setItem('BLOCKFROST_API_KEY', e.target.value);
   }
 
+  const onInit = () => {
+    init(wallet, blockfrostApiKey)
+      .then(({ tx, utxoRef }) => {
+        setUtxoRef(utxoRef);
+        window.localStorage.setItem('UTXOREF', JSON.stringify(utxoRef.toJson()));
+        toast({
+          title: `tx submitted: https://preprod.cardanoscan.io/transaction/${tx}`,
+          status: "success"
+        });
+      })
+      .catch(e => {
+        toast({
+          title: "something went wrong",
+          status: "error"
+        });
+        console.error(e);
+      });
+  }
+
   const onMintNft = () => {
-    mintNft(wallet, blockfrostApiKey)
-      // lock transaction created successfully
+    mintNft(wallet, blockfrostApiKey, utxoRef!)
       .then(txHash => toast({
         title: `tx submitted: https://preprod.cardanoscan.io/transaction/${txHash}`,
         status: "success"
       }))
-      // lock transaction failed
       .catch(e => {
         toast({
           title: "something went wrong",
@@ -71,7 +96,8 @@ export default function Home() {
           <ConnectionHandler isDisabled={blockfrostApiKey === ''} />
           {connected && (
             <>
-              <Button size="lg" ml={4} colorScheme="teal" isDisabled={blockfrostApiKey === ''} onClick={onMintNft}>Mint NFT</Button>
+              <Button size="lg" ml={4} colorScheme="teal" isDisabled={blockfrostApiKey === ''} onClick={onInit}>Init</Button>
+              <Button size="lg" ml={4} colorScheme="teal" isDisabled={blockfrostApiKey === '' || utxoRef === null} onClick={onMintNft}>Mint NFT</Button>
             </>
           )}
         </Box>

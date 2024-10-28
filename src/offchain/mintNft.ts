@@ -1,12 +1,12 @@
 import { BrowserWallet } from "@meshsdk/core";
-import { Value, Address, Tx, DataB, DataConstr, UTxO, DataI } from "@harmoniclabs/plu-ts";
+import { Value, Address, Tx, DataConstr, UTxO, DataI, TxOutRef } from "@harmoniclabs/plu-ts";
 import { fromAscii } from "@harmoniclabs/uint8array-utils";
 import { BlockfrostPluts } from "@harmoniclabs/blockfrost-pluts";
-import { scriptTestnetAddr, script } from "../../contracts/nftVendingMachine";
+import { getFinalContract } from "../../contracts/nftVendingMachine";
 import { toPlutsUtxo } from "./mesh-utils";
 import getTxBuilder from "./getTxBuilder";
 
-export async function mintNft(wallet: BrowserWallet, projectId: string): Promise<string> {
+export async function mintNft(wallet: BrowserWallet, projectId: string, utxoRef: TxOutRef): Promise<string> {
 
   const recipient = Address.fromString(
     await wallet.getChangeAddress()
@@ -26,6 +26,11 @@ export async function mintNft(wallet: BrowserWallet, projectId: string): Promise
   if (utxo === undefined) {
     throw new Error("not enough ada");
   }
+
+  const {
+    script,
+    testnetAddress: scriptTestnetAddr
+  } = getFinalContract(utxoRef);
 
   const tokenName = fromAscii('Test Token');
   const contractHash = scriptTestnetAddr.paymentCreds.hash;
@@ -52,7 +57,7 @@ export async function mintNft(wallet: BrowserWallet, projectId: string): Promise
     outputs: [{
       address: scriptTestnetAddr,
       value: Value.lovelaces(10_000_000),
-      datum: new DataI( currId + BigInt( 1 ) ), // keep track of token, increment counter
+      datum: new DataI(currId + BigInt(1)), // keep track of token, increment counter
     }],
     changeAddress: recipient,
     collaterals: [utxo],

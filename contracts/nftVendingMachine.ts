@@ -4,7 +4,6 @@ import {
   ScriptType,
   Credential,
   Script,
-  bs,
   compile,
   pfn,
   plet,
@@ -14,11 +13,9 @@ import {
   passert,
   pstruct,
   punIData,
-  punsafeConvertType,
   pisEmpty,
   punBData,
   pBool,
-  PTxOut,
   PTxOutRef,
   parseUPLC,
   UPLCProgram,
@@ -26,7 +23,8 @@ import {
   TxOutRef,
   UPLCConst,
   compileUPLC,
-  CredentialType,
+  int,
+  punsafeConvertType,
 } from "@harmoniclabs/plu-ts";
 
 const ASSET_NAME = "Test Token";
@@ -50,7 +48,6 @@ export const contract = pfn([
     .onMinting(({ currencySym }) =>
       pmatch(action)
         .onInit(() => 
-        
           passert.$(
             pisEmpty.$(tx.inputs.tail) // only one input
             .and(tx.inputs.head.utxoRef.eq(mustSpendInitUtxo)) // make sure we only call init once
@@ -62,17 +59,16 @@ export const contract = pfn([
               .and(tx.mint.head.snd.head.snd.eq(1))
             )
             .and(
-              plet( tx.outputs.head ).in( out =>
+              plet(tx.outputs.head).in(out =>
                 // make sure the nft is sent to the contract
-                out.address.credential.hash.eq( currencySym )
-                .and( out.value.amountOf( currencySym, ASSET_NAME ).eq( 1 ))
-                // the initial datum is 0
-
-                .and(
-                  pmatch( out.datum )
-                  .onInlineDatum( ({ datum }) => punIData.$(datum).eq(0) )
-                  ._(_ => pBool(false))
-                )
+                out.address.credential.hash.eq(currencySym)
+                  .and(punsafeConvertType(out.value.amountOf(currencySym, ASSET_NAME), int).eq(1))
+                  // the initial datum is 0
+                  .and(
+                    pmatch(out.datum)
+                    .onInlineDatum(({ datum }) => punIData.$(datum).eq(0))
+                    ._(_ => pBool(false))
+                  )
               )
             )
           )
@@ -141,34 +137,33 @@ export const contract = pfn([
 
 export const compiledContract = compile(contract);
 
-export function getFinalContract( utxoRef: TxOutRef ): {
+export function getFinalContract(utxoRef: TxOutRef): {
   script: Script,
   credential: Credential,
   address: Address,
   testnetAddress: Address
 }
 {
-  const program = parseUPLC( compiledContract );
+  const program = parseUPLC(compiledContract);
 
   const applyiedProgram = new UPLCProgram(
     program.version,
     new Application(
       program.body,
-      UPLCConst.data( utxoRef.toData("v3") )
+      UPLCConst.data(utxoRef.toData("v3"))
     )
   );
 
-  const finalCompiled = compileUPLC( applyiedProgram ).toBuffer().buffer;
+  const finalCompiled = compileUPLC(applyiedProgram).toBuffer().buffer;
 
   const script = new Script(
     ScriptType.PlutusV3,
     finalCompiled
   );
 
-  const credential = Credential.script( script.hash );
-
-  const address = Address.mainnet( credential );
-  const testnetAddress = Address.testnet( credential );
+  const credential = Credential.script(script.hash);
+  const address = Address.mainnet(credential);
+  const testnetAddress = Address.testnet(credential);
 
   return {
     script,
