@@ -79,8 +79,6 @@ export async function init(wallet: BrowserWallet, projectId: string): Promise<In
     unsignedTx.addVKeyWitness(wit);
   }
 
-  console.log(JSON.stringify(unsignedTx.toJson(), undefined, 2));
-
   const tx = await Blockfrost.submitTx(unsignedTx);
   
   return {
