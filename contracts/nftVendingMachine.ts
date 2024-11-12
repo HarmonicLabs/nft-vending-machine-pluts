@@ -25,6 +25,9 @@ import {
   compileUPLC,
   int,
   punsafeConvertType,
+  ptraceIfFalse,
+  pdelay,
+  pStr,
 } from "@harmoniclabs/plu-ts";
 
 const ASSET_NAME = "Test Token";
@@ -74,13 +77,14 @@ export const contract = pfn([
           )
         )
         .onMint(() =>
-          passert.$(
+          passert.$(ptraceIfFalse.$(pdelay(pStr("onMint"))).$(
             tx.inputs.some(i => i.resolved.address.credential.hash.eq(currencySym))
-          )
+          ))
         )
         .onBurn(() => 
-          passert.$(
-            tx.mint.filter(i => i.fst.eq(currencySym)).head.snd.every(m => m.snd.lt(0)))
+          passert.$(ptraceIfFalse.$(pdelay(pStr("onBurn"))).$(
+            tx.mint.filter(i => i.fst.eq(currencySym)).head.snd.every(m => m.snd.lt(0))
+          ))
         )
     )
     .onSpending(({ utxoRef, datum }) => {
@@ -91,13 +95,17 @@ export const contract = pfn([
 
       const ownHash = punBData.$(input.resolved.address.credential.raw.fields.head);
 
-      const hasOwnershipToken = plet( input.resolved.value.amountOf(ownHash, ASSET_NAME).gtEq(1) );
+      const hasOwnershipToken = plet(input.resolved.value.amountOf(ownHash, ASSET_NAME).gtEq(1));
+
+      ptraceIfFalse.$(pdelay(pStr("hasOwnershipToken"))).$(hasOwnershipToken);
 
       const paymentCredential = input.resolved.address.credential;
 
       const id = plet(punIData.$(datum.unwrap));
 
       const hasOwnHashAsFirst = pisEmpty.$(tx.mint.tail).and(tx.mint.head.fst.eq(ownHash));
+
+      ptraceIfFalse.$(pdelay(pStr("hasOwnHashAsFirst"))).$(hasOwnHashAsFirst);
 
       const ownMintedAssets = plet(tx.mint.head.snd);
 
@@ -109,19 +117,31 @@ export const contract = pfn([
 
       const hasCorrectName = userName.eq(assetNameWithId);
 
+      ptraceIfFalse.$(pdelay(pStr("hasCorrectName"))).$(hasCorrectName);
+
       const hasCorrectMintingQuantity = userQuantity.eq(1);
 
+      ptraceIfFalse.$(pdelay(pStr("hasCorrectMintingQuantity"))).$(hasCorrectMintingQuantity);
+
       const hasValidSupply = id.lt(MAX_SUPPLY);
+
+      ptraceIfFalse.$(pdelay(pStr("hasValidSupply"))).$(hasValidSupply);
 
       const outputs = tx.outputs.filter(o => o.address.credential.eq(paymentCredential));
 
       const hasOnlyOneOuput = outputs.length.eq(1);
+
+      ptraceIfFalse.$(pdelay(pStr("hasOnlyOneOuput"))).$(hasOnlyOneOuput);
           
       const hasIncreasedId = pmatch(outputs.head.datum)
         .onInlineDatum(({ datum }) => punIData.$(datum).eq(id.add(1)))
         ._(_ => pBool(false));
 
+      ptraceIfFalse.$(pdelay(pStr("hasIncreasedId"))).$(hasIncreasedId);
+
       const hasCorrectValue = outputs.head.value.lovelaces.eq(input.resolved.value.lovelaces);
+
+      ptraceIfFalse.$(pdelay(pStr("hasCorrectValue"))).$(hasCorrectValue);
 
       return passert.$(hasOwnershipToken
         .and(hasOwnHashAsFirst)
