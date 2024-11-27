@@ -97,15 +97,11 @@ export const contract = pfn([
 
       const hasOwnershipToken = plet(input.resolved.value.amountOf(ownHash, ASSET_NAME).gtEq(1));
 
-      ptraceIfFalse.$(pdelay(pStr("hasOwnershipToken"))).$(hasOwnershipToken);
-
       const paymentCredential = input.resolved.address.credential;
 
       const id = plet(punIData.$(datum.unwrap));
 
       const hasOwnHashAsFirst = pisEmpty.$(tx.mint.tail).and(tx.mint.head.fst.eq(ownHash));
-
-      ptraceIfFalse.$(pdelay(pStr("hasOwnHashAsFirst"))).$(hasOwnHashAsFirst);
 
       const ownMintedAssets = plet(tx.mint.head.snd);
 
@@ -117,40 +113,29 @@ export const contract = pfn([
 
       const hasCorrectName = userName.eq(assetNameWithId);
 
-      ptraceIfFalse.$(pdelay(pStr("hasCorrectName"))).$(hasCorrectName);
-
       const hasCorrectMintingQuantity = userQuantity.eq(1);
 
-      ptraceIfFalse.$(pdelay(pStr("hasCorrectMintingQuantity"))).$(hasCorrectMintingQuantity);
-
       const hasValidSupply = id.lt(MAX_SUPPLY);
-
-      ptraceIfFalse.$(pdelay(pStr("hasValidSupply"))).$(hasValidSupply);
 
       const outputs = tx.outputs.filter(o => o.address.credential.eq(paymentCredential));
 
       const hasOnlyOneOuput = outputs.length.eq(1);
 
-      ptraceIfFalse.$(pdelay(pStr("hasOnlyOneOuput"))).$(hasOnlyOneOuput);
-          
       const hasIncreasedId = pmatch(outputs.head.datum)
         .onInlineDatum(({ datum }) => punIData.$(datum).eq(id.add(1)))
         ._(_ => pBool(false));
 
-      ptraceIfFalse.$(pdelay(pStr("hasIncreasedId"))).$(hasIncreasedId);
-
       const hasCorrectValue = outputs.head.value.lovelaces.eq(input.resolved.value.lovelaces);
 
-      ptraceIfFalse.$(pdelay(pStr("hasCorrectValue"))).$(hasCorrectValue);
-
-      return passert.$(hasOwnershipToken
-        .and(hasOwnHashAsFirst)
-        .and(hasCorrectName)
-        .and(hasCorrectMintingQuantity)
-        .and(hasValidSupply)
-        .and(hasOnlyOneOuput)
-        .and(hasIncreasedId)
-        .and(hasCorrectValue));
+      return passert.$(
+        ptraceIfFalse.$(pdelay(pStr("hasOwnershipToken"))).$(hasOwnershipToken)
+        .and(ptraceIfFalse.$(pdelay(pStr("hasOwnHashAsFirst"))).$(hasOwnHashAsFirst))
+        .and(ptraceIfFalse.$(pdelay(pStr("hasCorrectName"))).$(hasCorrectName))
+        .and(ptraceIfFalse.$(pdelay(pStr("hasCorrectMintingQuantity"))).$(hasCorrectMintingQuantity))
+        .and(ptraceIfFalse.$(pdelay(pStr("hasValidSupply"))).$(hasValidSupply))
+        .and(ptraceIfFalse.$(pdelay(pStr("hasOnlyOneOuput"))).$(hasOnlyOneOuput))
+        .and(ptraceIfFalse.$(pdelay(pStr("hasIncreasedId"))).$(hasIncreasedId))
+        .and(ptraceIfFalse.$(pdelay(pStr("hasCorrectValue"))).$(hasCorrectValue)));
     })
     ._(_ => perror(unit));
 });
