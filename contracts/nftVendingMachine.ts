@@ -30,7 +30,7 @@ import {
   pStr,
   pBs,
   pshow,
-  bs,
+  bs
 } from "@harmoniclabs/plu-ts";
 
 import { fromAscii } from "@harmoniclabs/uint8array-utils";
@@ -124,7 +124,7 @@ export const contract = pfn([
 
       const outputs = tx.outputs.filter(o => o.address.credential.eq(paymentCredential));
 
-      const hasOnlyOneOuput = outputs.length.eq(1);
+      const hasOnlyOneOutput = outputs.length.eq(1);
 
       const hasIncreasedId = pmatch(outputs.head.datum)
         .onInlineDatum(({ datum }) => punIData.$(datum).eq(id.add(1)))
@@ -138,7 +138,7 @@ export const contract = pfn([
         .and(ptraceIfFalse.$(pdelay(pStr(`hasCorrectName ${pshow(bs).$(assetNameWithId)} != ${pshow(bs).$(userName)}`))).$(hasCorrectName))
         .and(ptraceIfFalse.$(pdelay(pStr("hasCorrectMintingQuantity"))).$(hasCorrectMintingQuantity))
         .and(ptraceIfFalse.$(pdelay(pStr("hasValidSupply"))).$(hasValidSupply))
-        .and(ptraceIfFalse.$(pdelay(pStr("hasOnlyOneOuput"))).$(hasOnlyOneOuput))
+        .and(ptraceIfFalse.$(pdelay(pStr("hasOnlyOneOutput"))).$(hasOnlyOneOutput))
         .and(ptraceIfFalse.$(pdelay(pStr("hasIncreasedId"))).$(hasIncreasedId))
         .and(ptraceIfFalse.$(pdelay(pStr("hasCorrectValue"))).$(hasCorrectValue)));
     })
