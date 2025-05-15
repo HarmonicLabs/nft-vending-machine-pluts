@@ -32,7 +32,7 @@ export async function mintNft(wallet: BrowserWallet, projectId: string, utxoRef:
     testnetAddress: scriptTestnetAddr
   } = getFinalContract(utxoRef);
 
-  const tokenNameStr = 'Test Token';
+  const tokenNameStr = 'TestToken';
   const tokenName = fromAscii(tokenNameStr);
   const contractHash = scriptTestnetAddr.paymentCreds.hash;
   const contractUTxOs = await Blockfrost.addressesUtxos(scriptTestnetAddr);

@@ -28,9 +28,14 @@ import {
   ptraceIfFalse,
   pdelay,
   pStr,
+  pBs,
+  pshow,
+  bs,
 } from "@harmoniclabs/plu-ts";
 
-const ASSET_NAME = "Test Token";
+import { fromAscii } from "@harmoniclabs/uint8array-utils";
+
+const ASSET_NAME = "TestToken";
 const MAX_SUPPLY = 10;
 
 export const MintAction = pstruct({
@@ -109,7 +114,7 @@ export const contract = pfn([
 
       const userQuantity = ownMintedAssets.head.snd;
 
-      const assetNameWithId = `${ASSET_NAME}#${id}`;
+      const assetNameWithId = pBs(fromAscii(ASSET_NAME)).concat(fromAscii('#')).concat(pshow(int).$(id));
 
       const hasCorrectName = userName.eq(assetNameWithId);
 
@@ -130,7 +135,7 @@ export const contract = pfn([
       return passert.$(
         ptraceIfFalse.$(pdelay(pStr("hasOwnershipToken"))).$(hasOwnershipToken)
         .and(ptraceIfFalse.$(pdelay(pStr("hasOwnHashAsFirst"))).$(hasOwnHashAsFirst))
-        .and(ptraceIfFalse.$(pdelay(pStr("hasCorrectName"))).$(hasCorrectName))
+        .and(ptraceIfFalse.$(pdelay(pStr(`hasCorrectName ${pshow(bs).$(assetNameWithId)} != ${pshow(bs).$(userName)}`))).$(hasCorrectName))
         .and(ptraceIfFalse.$(pdelay(pStr("hasCorrectMintingQuantity"))).$(hasCorrectMintingQuantity))
         .and(ptraceIfFalse.$(pdelay(pStr("hasValidSupply"))).$(hasValidSupply))
         .and(ptraceIfFalse.$(pdelay(pStr("hasOnlyOneOuput"))).$(hasOnlyOneOuput))

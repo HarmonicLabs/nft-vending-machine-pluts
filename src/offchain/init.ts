@@ -37,7 +37,7 @@ export async function init(wallet: BrowserWallet, projectId: string): Promise<In
     testnetAddress: scriptTestnetAddr
   } = getFinalContract(paramUtxo.utxoRef);
 
-  const tokenName = fromAscii('Test Token');
+  const tokenName = fromAscii('TestToken');
   const contractHash = scriptTestnetAddr.paymentCreds.hash;
 
   const mintedNftValue = Value.singleAsset(
