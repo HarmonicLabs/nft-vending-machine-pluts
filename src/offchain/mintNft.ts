@@ -1,27 +1,26 @@
-import { BrowserWallet } from "@meshsdk/core";
+import { BrowserWallet, IWallet } from "@meshsdk/core";
 import { Value, Address, Tx, DataConstr, UTxO, DataI, TxOutRef } from "@harmoniclabs/plu-ts";
 import { fromAscii } from "@harmoniclabs/uint8array-utils";
 import { BlockfrostPluts } from "@harmoniclabs/blockfrost-pluts";
 import { getFinalContract } from "../../contracts/nftVendingMachine";
-import { toPlutsUtxo } from "./mesh-utils";
 import getTxBuilder from "./getTxBuilder";
+import { Emulator } from "@harmoniclabs/pluts-emulator";
+import { vkeyWitnessFromSignData } from "./commons";
 
-export async function mintNft(wallet: BrowserWallet, projectId: string, utxoRef: TxOutRef): Promise<string> {
-
+export async function mintNft(wallet: BrowserWallet | IWallet, provider: Emulator | BlockfrostPluts | null, isEmulator: boolean, utxoRef: TxOutRef): Promise<string> {
+  if (!provider) {
+    throw new Error("no Emulator/Blockfrost provider");
+  }
   const recipient = Address.fromString(
     await wallet.getChangeAddress()
   );
 
-  const Blockfrost = new BlockfrostPluts({ projectId });
-
-  const txBuilder = await getTxBuilder(Blockfrost);
-  const myUTxOs = (await wallet.getUtxos()).map(toPlutsUtxo);
-
+  const txBuilder = await getTxBuilder(provider);
+  const myUTxOs = await provider.getUtxos(recipient);
   if (myUTxOs.length === 0) {
-    throw new Error("have you requested founds from the faucet?");
+    throw new Error(isEmulator ? "No UTxOs have been found at this address on the emulated ledger" : "Have you requested funds from the faucet?");
   }
-
-  const utxo = myUTxOs.find(u => u.resolved.value.lovelaces > 15_000_000);
+  const utxo = myUTxOs.find(u => u.resolved.value.lovelaces >= 15_000_000);
 
   if (utxo === undefined) {
     throw new Error("not enough ada");
@@ -35,7 +34,7 @@ export async function mintNft(wallet: BrowserWallet, projectId: string, utxoRef:
   const tokenNameStr = 'TestToken';
   const tokenName = fromAscii(tokenNameStr);
   const contractHash = scriptTestnetAddr.paymentCreds.hash;
-  const contractUTxOs = await Blockfrost.addressesUtxos(scriptTestnetAddr);
+  const contractUTxOs = await provider.addressUtxos(scriptTestnetAddr);
   const contractInput = contractUTxOs.find(utxo => utxo.resolved.value.get(contractHash, tokenName) === BigInt(1));
 
   if (contractInput === undefined) {
@@ -43,7 +42,6 @@ export async function mintNft(wallet: BrowserWallet, projectId: string, utxoRef:
   }
 
   const currId = getNftCount(contractInput);
-
   const mintedNftValue = Value.singleAsset(
     contractHash,
     fromAscii(`${tokenNameStr}#${currId.toString()}`), // depends on the datum
@@ -82,14 +80,25 @@ export async function mintNft(wallet: BrowserWallet, projectId: string, utxoRef:
     }],
   });
 
-  const txStr = await wallet.signTx(unsignedTx.toCbor().toString());
+  // Sign the tx body hash
+  const txHashHex = unsignedTx.body.hash.toString();
+  // Build the witness set data
+  const {key, signature} = await wallet.signData(txHashHex, recipient.toString());
+  const witness = vkeyWitnessFromSignData(key, signature);
 
-  const txWit = Tx.fromCbor(txStr).witnesses.vkeyWitnesses ?? [];
-  for (const wit of txWit) {
-    unsignedTx.addVKeyWitness(wit);
+  // inject it to the unsigned tx
+  unsignedTx.addVKeyWitness(witness);
+
+  const txHash = await provider.submitTx(unsignedTx);
+  console.log("Transaction Hash:", txHash);
+
+  if (isEmulator && provider instanceof Emulator) {
+    provider.awaitBlock(1);
+    const ledgerState = provider.prettyPrintLedgerState(true);
+    console.log("Ledger State:", ledgerState);
   }
 
-  return await Blockfrost.submitTx(unsignedTx);
+  return txHash
 }
 
 function getNftCount(contractInput: UTxO): bigint {
