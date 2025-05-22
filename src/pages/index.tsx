@@ -37,7 +37,13 @@ export default function Home() {
     if (useEmulator) {
       if (wallet && connected) {
         (async() => {
-          const walletAddress = Address.fromString(await wallet.getChangeAddress()); // Assuming `wallet.address` is a string
+          const changeAddress = await wallet.getChangeAddress();
+          // Verify that the returned value is a string
+          if (typeof changeAddress !== "string") {
+            throw new Error("Invalid address: Expected a string from wallet.getChangeAddress()");
+          }
+          // Convert the string to an Address object
+          const walletAddress = Address.fromString(changeAddress);
           // Initialize emulator with UTxOs directly, not using the faucet
           const addressBalances = new Map<Address, bigint>();
           addressBalances.set(walletAddress, 30_000_000n);
